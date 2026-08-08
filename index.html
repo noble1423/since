@@ -1,20 +1,33 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 <style>
   :root {
-    --bg: #14181f;
-    --surface: #1d242f;
-    --surface-2: #242c38;
-    --text: #e9e5da;
-    --text-dim: #8f98a3;
-    --sage: #6fa37e;
-    --gold: #c7a445;
-    --rust: #a2583a;
-    --divider: rgba(233, 229, 218, 0.09);
+    --bg: #050506;
+    --bg-2: #0c0405;
+    --glass: rgba(255, 255, 255, 0.05);
+    --glass-strong: rgba(255, 255, 255, 0.09);
+    --glass-border: rgba(255, 70, 80, 0.28);
+    --glass-border-soft: rgba(255, 255, 255, 0.10);
+    --red: #ff2b3d;
+    --red-bright: #ff5468;
+    --red-deep: #6e0f1b;
+    --red-glow: rgba(255, 43, 61, 0.5);
+    --fresh: #f3e9e8;
+    --aging: #ff5d6c;
+    --overdue: #ff1a32;
+    --text: #f3e9e8;
+    --text-dim: #a3868a;
+    --divider: rgba(255, 255, 255, 0.09);
   }
 
   * { box-sizing: border-box; }
+
+  html, body { overflow-x: hidden; }
 
   body, .since-root {
     margin: 0;
@@ -22,6 +35,68 @@
     background: var(--bg);
     color: var(--text);
     min-height: 100%;
+  }
+
+  body {
+    position: relative;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(255, 30, 45, 0.14), transparent 60%),
+      var(--bg);
+  }
+
+  /* --- Liquid glass ambience --- */
+  .liquid-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .blob {
+    position: absolute;
+    border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%;
+    filter: blur(70px);
+    mix-blend-mode: screen;
+    opacity: 0.55;
+    will-change: transform, border-radius;
+  }
+  .blob-1 {
+    width: 560px; height: 560px;
+    top: -120px; left: -140px;
+    background: radial-gradient(circle at 35% 35%, var(--red) 0%, var(--red-deep) 55%, transparent 75%);
+    animation: drift1 22s ease-in-out infinite;
+  }
+  .blob-2 {
+    width: 480px; height: 480px;
+    bottom: -160px; right: -120px;
+    background: radial-gradient(circle at 60% 40%, var(--red-bright) 0%, var(--red-deep) 55%, transparent 75%);
+    animation: drift2 26s ease-in-out infinite;
+  }
+  .blob-3 {
+    width: 380px; height: 380px;
+    top: 40%; left: 55%;
+    background: radial-gradient(circle at 50% 50%, rgba(255,60,75,0.9) 0%, var(--red-deep) 60%, transparent 78%);
+    opacity: 0.35;
+    animation: drift3 30s ease-in-out infinite;
+  }
+
+  @keyframes drift1 {
+    0%, 100% { transform: translate(0, 0) scale(1); border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%; }
+    33% { transform: translate(60px, 40px) scale(1.08); border-radius: 58% 42% 39% 61% / 55% 60% 40% 45%; }
+    66% { transform: translate(-30px, 70px) scale(0.95); border-radius: 46% 54% 55% 45% / 48% 40% 60% 52%; }
+  }
+  @keyframes drift2 {
+    0%, 100% { transform: translate(0, 0) scale(1); border-radius: 46% 54% 55% 45% / 48% 40% 60% 52%; }
+    50% { transform: translate(-70px, -50px) scale(1.1); border-radius: 60% 40% 44% 56% / 42% 58% 42% 58%; }
+  }
+  @keyframes drift3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-90px, -60px) scale(1.15); }
+  }
+
+  .since-root, .auth-wrap {
+    position: relative;
+    z-index: 1;
   }
 
   .since-root {
@@ -46,6 +121,7 @@
     font-optical-sizing: auto;
     letter-spacing: -0.01em;
     margin: 0;
+    text-shadow: 0 0 30px rgba(255, 30, 45, 0.35);
   }
 
   .since-tagline {
@@ -58,8 +134,10 @@
   }
 
   .add-btn {
-    background: var(--surface);
-    border: 1px solid var(--divider);
+    background: var(--glass);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    border: 1px solid var(--glass-border-soft);
     color: var(--text);
     font-family: 'IBM Plex Sans', sans-serif;
     font-size: 14px;
@@ -67,26 +145,29 @@
     padding: 10px 18px;
     border-radius: 100px;
     cursor: pointer;
-    transition: background 0.15s ease, transform 0.1s ease;
+    transition: background 0.15s ease, transform 0.1s ease, border-color 0.15s ease;
     white-space: nowrap;
   }
-  .add-btn:hover { background: var(--surface-2); }
+  .add-btn:hover { background: var(--glass-strong); border-color: var(--glass-border); }
   .add-btn:active { transform: scale(0.97); }
-  .add-btn:focus-visible { outline: 2px solid var(--sage); outline-offset: 2px; }
+  .add-btn:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
 
   .since-divider {
     height: 1px;
-    background: var(--divider);
+    background: linear-gradient(90deg, transparent, var(--divider) 20%, var(--divider) 80%, transparent);
     margin: 22px 0 26px;
   }
 
   .add-form {
-    background: var(--surface);
-    border: 1px solid var(--divider);
-    border-radius: 14px;
+    background: var(--glass);
+    backdrop-filter: blur(22px) saturate(170%);
+    -webkit-backdrop-filter: blur(22px) saturate(170%);
+    border: 1px solid var(--glass-border-soft);
+    border-radius: 16px;
     padding: 18px;
     margin-bottom: 24px;
     display: none;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   }
   .add-form.open { display: block; }
   .add-form-row {
@@ -96,7 +177,7 @@
     margin-bottom: 12px;
   }
   .add-form input, .add-form select {
-    background: var(--bg);
+    background: rgba(0, 0, 0, 0.35);
     border: 1px solid var(--divider);
     color: var(--text);
     font-family: 'IBM Plex Sans', sans-serif;
@@ -104,6 +185,7 @@
     padding: 10px 12px;
     border-radius: 8px;
   }
+  .add-form input:focus-visible, .add-form select:focus-visible { outline: 2px solid var(--red); outline-offset: 1px; }
   .add-form input#f-name { flex: 1; min-width: 160px; }
   .add-form input#f-emoji { width: 60px; text-align: center; }
   .add-form select { min-width: 150px; }
@@ -115,9 +197,14 @@
     padding: 8px 16px;
     border-radius: 100px;
     cursor: pointer;
-    border: 1px solid var(--divider);
+    border: 1px solid var(--glass-border-soft);
   }
-  .btn-save { background: var(--sage); color: #101410; border-color: transparent; }
+  .btn-save {
+    background: linear-gradient(135deg, var(--red), var(--red-deep));
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 4px 20px var(--red-glow);
+  }
   .btn-cancel { background: transparent; color: var(--text-dim); }
 
   .board {
@@ -127,22 +214,33 @@
   }
 
   .card {
-    background: var(--surface);
-    border: 1px solid var(--divider);
-    border-radius: 14px;
+    background: linear-gradient(160deg, var(--glass-strong), rgba(255, 20, 35, 0.04));
+    backdrop-filter: blur(22px) saturate(170%);
+    -webkit-backdrop-filter: blur(22px) saturate(170%);
+    border: 1px solid var(--glass-border-soft);
+    border-radius: 16px;
     padding: 18px 18px 16px;
     position: relative;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transition: border-color 0.2s ease, transform 0.08s ease-out, box-shadow 0.2s ease;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+  .card:hover {
+    border-color: var(--glass-border);
+    box-shadow: 0 16px 44px rgba(255, 20, 35, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
   .card-bar {
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 3px;
-    background: var(--sage);
+    background: var(--fresh);
+    box-shadow: 0 0 12px currentColor;
     transition: background 0.4s ease;
   }
 
@@ -168,9 +266,9 @@
     cursor: pointer;
     padding: 2px 4px;
     opacity: 0.5;
-    transition: opacity 0.15s ease;
+    transition: opacity 0.15s ease, color 0.15s ease;
   }
-  .card-del:hover { opacity: 1; }
+  .card-del:hover { opacity: 1; color: var(--red-bright); }
 
   .counter-wrap { perspective: 400px; }
   .counter {
@@ -207,8 +305,8 @@
   }
 
   .log-btn {
-    background: var(--surface-2);
-    border: 1px solid var(--divider);
+    background: var(--glass-strong);
+    border: 1px solid var(--glass-border-soft);
     color: var(--text);
     font-family: 'IBM Plex Sans', sans-serif;
     font-size: 12.5px;
@@ -216,11 +314,15 @@
     padding: 7px 13px;
     border-radius: 100px;
     cursor: pointer;
-    transition: background 0.15s ease, transform 0.1s ease;
+    transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
   }
-  .log-btn:hover { background: var(--sage); color: #101410; }
+  .log-btn:hover {
+    background: linear-gradient(135deg, var(--red), var(--red-deep));
+    color: #fff;
+    box-shadow: 0 4px 16px var(--red-glow);
+  }
   .log-btn:active { transform: scale(0.96); }
-  .log-btn:focus-visible { outline: 2px solid var(--sage); outline-offset: 2px; }
+  .log-btn:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
 
   .empty-state {
     text-align: center;
@@ -249,12 +351,15 @@
     padding: 20px;
   }
   .auth-card {
-    background: var(--surface);
-    border: 1px solid var(--divider);
-    border-radius: 16px;
+    background: linear-gradient(160deg, var(--glass-strong), rgba(255, 20, 35, 0.05));
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    border: 1px solid var(--glass-border-soft);
+    border-radius: 20px;
     padding: 32px 28px;
     width: 100%;
     max-width: 340px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255,255,255,0.02) inset;
   }
   .auth-title {
     font-family: 'Fraunces', serif;
@@ -262,6 +367,7 @@
     font-size: 30px;
     margin: 0 0 4px;
     text-align: center;
+    text-shadow: 0 0 30px rgba(255, 30, 45, 0.4);
   }
   .auth-sub {
     text-align: center;
@@ -284,7 +390,7 @@
     letter-spacing: 0.06em;
   }
   .auth-field input {
-    background: var(--bg);
+    background: rgba(0, 0, 0, 0.35);
     border: 1px solid var(--divider);
     color: var(--text);
     font-family: 'IBM Plex Sans', sans-serif;
@@ -292,17 +398,17 @@
     padding: 11px 12px;
     border-radius: 8px;
   }
-  .auth-field input:focus-visible { outline: 2px solid var(--sage); outline-offset: 1px; }
+  .auth-field input:focus-visible { outline: 2px solid var(--red); outline-offset: 1px; }
   .auth-error {
-    color: var(--rust);
+    color: var(--red-bright);
     font-size: 12.5px;
     margin: -4px 0 14px;
     min-height: 16px;
   }
   .auth-submit {
     width: 100%;
-    background: var(--sage);
-    color: #101410;
+    background: linear-gradient(135deg, var(--red), var(--red-deep));
+    color: #fff;
     border: none;
     font-family: 'IBM Plex Sans', sans-serif;
     font-weight: 600;
@@ -311,8 +417,10 @@
     border-radius: 100px;
     cursor: pointer;
     margin-top: 4px;
-    transition: opacity 0.15s ease;
+    transition: opacity 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 6px 24px var(--red-glow);
   }
+  .auth-submit:hover { box-shadow: 0 8px 30px var(--red-glow); }
   .auth-submit:active { opacity: 0.85; }
   .auth-toggle {
     text-align: center;
@@ -323,7 +431,7 @@
   .auth-toggle button {
     background: none;
     border: none;
-    color: var(--sage);
+    color: var(--red-bright);
     font-family: 'IBM Plex Sans', sans-serif;
     font-size: 13px;
     font-weight: 600;
@@ -338,30 +446,57 @@
     color: var(--text-dim);
   }
   .top-account button {
-    background: none;
-    border: 1px solid var(--divider);
+    background: var(--glass);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--glass-border-soft);
     color: var(--text-dim);
     font-size: 12px;
     padding: 6px 12px;
     border-radius: 100px;
     cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
   }
-  .top-account button:hover { color: var(--text); border-color: var(--text-dim); }
+  .top-account button:hover { color: var(--text); border-color: var(--glass-border); }
   .app-hidden { display: none !important; }
+
+  .orb-wrap {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto 4px;
+    cursor: grab;
+    touch-action: none;
+  }
+  .orb-wrap:active { cursor: grabbing; }
+  .orb-wrap canvas { display: block; width: 100%; height: 100%; }
+  .auth-wrap {
+    flex-direction: column;
+    gap: 6px;
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .counter, .add-btn, .log-btn, .card-del { transition: none !important; }
+    .blob { animation: none !important; }
   }
 </style>
 
+<div class="liquid-bg">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+
 <div id="auth-screen" class="auth-wrap">
+  <div class="orb-wrap" id="orb-wrap">
+    <canvas id="orb-canvas"></canvas>
+  </div>
   <div class="auth-card">
     <h1 class="auth-title">Since</h1>
     <p class="auth-sub" id="auth-mode-sub">sign in to your list</p>
 
     <div class="auth-field">
-      <label for="auth-username">Username</label>
-      <input id="auth-username" type="text" autocomplete="username" />
+      <label for="auth-username">Email</label>
+      <input id="auth-username" type="email" autocomplete="email" />
     </div>
     <div class="auth-field">
       <label for="auth-password">Password</label>
@@ -397,7 +532,7 @@
     </div>
   </div>
   <div class="since-divider"></div>
-  <div id="storage-warning" style="display:none; background: rgba(162,88,58,0.12); border: 1px solid var(--rust); color: var(--text); font-size: 13px; padding: 10px 14px; border-radius: 10px; margin-bottom: 18px;">
+  <div id="storage-warning" style="display:none; background: rgba(255,43,61,0.12); backdrop-filter: blur(14px); border: 1px solid var(--red-bright); color: var(--text); font-size: 13px; padding: 10px 14px; border-radius: 10px; margin-bottom: 18px;">
     Heads up: I couldn't reach storage just now, so your account and list may not be saved between visits. Everything still works for this session.
   </div>
 
@@ -426,8 +561,6 @@
 
 <script>
 (function () {
-  const ACCOUNTS_KEY = 'since-accounts-v1';
-  const SESSION_KEY = 'since-session-v1';
   const boardEl = document.getElementById('board');
   const statsEl = document.getElementById('quiet-stats');
   const toggleAddBtn = document.getElementById('toggle-add');
@@ -454,78 +587,186 @@
   let currentUser = null;
   let lastStorageError = '';
 
-  // Local storage wrapper — works standalone in any browser (e.g. hosted on GitHub Pages).
-  // Data is saved per-browser/device only; there's no server, so it won't sync across devices.
-  const localDB = {
-    get(key) {
-      try {
-        const raw = window.localStorage.getItem(key);
-        return raw === null ? null : { key, value: raw };
-      } catch (e) {
-        lastStorageError = (e && e.message) ? e.message : String(e);
-        return null;
+  // --- 3D liquid glass orb (draggable hero on the login screen) ---
+  (function initOrb() {
+    const wrap = document.getElementById('orb-wrap');
+    const canvas = document.getElementById('orb-canvas');
+    if (!wrap || !canvas || typeof THREE === 'undefined') {
+      if (wrap) wrap.style.display = 'none';
+      return;
+    }
+
+    let renderer, scene, camera, mesh, baseGeo;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    } catch (e) {
+      wrap.style.display = 'none';
+      return;
+    }
+
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function size() {
+      const s = wrap.clientWidth || 200;
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(s, s, false);
+      if (camera) { camera.aspect = 1; camera.updateProjectionMatrix(); }
+    }
+
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
+    camera.position.set(0, 0, 3.4);
+
+    const ambient = new THREE.AmbientLight(0x442026, 1.4);
+    scene.add(ambient);
+    const key = new THREE.PointLight(0xffffff, 1.4, 10);
+    key.position.set(2, 2, 3);
+    scene.add(key);
+    const rim = new THREE.PointLight(0xff2b3d, 2.2, 10);
+    rim.position.set(-2, -1, 2);
+    scene.add(rim);
+
+    baseGeo = new THREE.IcosahedronGeometry(1, 5);
+    const positions = baseGeo.attributes.position;
+    const basePositions = new Float32Array(positions.array.length);
+    basePositions.set(positions.array);
+
+    const material = new THREE.MeshPhysicalMaterial({
+      color: 0xff2b3d,
+      emissive: 0x3a0a12,
+      metalness: 0.35,
+      roughness: 0.18,
+      clearcoat: 1,
+      clearcoatRoughness: 0.12,
+      transparent: true,
+      opacity: 0.92,
+    });
+
+    mesh = new THREE.Mesh(baseGeo, material);
+    scene.add(mesh);
+
+    // gentle 3-noise style displacement using layered sine waves (self-contained, no external noise lib)
+    function noise3(x, y, z, t) {
+      return (
+        Math.sin(x * 2.1 + t * 0.6) +
+        Math.sin(y * 2.3 + t * 0.5 + 1.3) +
+        Math.sin(z * 2.4 + t * 0.7 + 2.6) +
+        Math.sin((x + y) * 1.6 - t * 0.4)
+      ) / 4;
+    }
+
+    function updateGeometry(t) {
+      const arr = positions.array;
+      for (let i = 0; i < arr.length; i += 3) {
+        const bx = basePositions[i], by = basePositions[i + 1], bz = basePositions[i + 2];
+        const n = noise3(bx, by, bz, t);
+        const scale = 1 + n * 0.14;
+        arr[i] = bx * scale;
+        arr[i + 1] = by * scale;
+        arr[i + 2] = bz * scale;
       }
-    },
-    set(key, value) {
-      try {
-        window.localStorage.setItem(key, value);
-        return { key, value };
-      } catch (e) {
-        lastStorageError = (e && e.message) ? e.message : String(e);
-        return null;
+      positions.needsUpdate = true;
+      baseGeo.computeVertexNormals();
+    }
+
+    let dragging = false;
+    let lastX = 0, lastY = 0;
+    let velX = 0.003, velY = 0.0018;
+
+    wrap.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      wrap.setPointerCapture(e.pointerId);
+    });
+    wrap.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - lastX;
+      const dy = e.clientY - lastY;
+      mesh.rotation.y += dx * 0.008;
+      mesh.rotation.x += dy * 0.008;
+      velX = dx * 0.0006;
+      velY = dy * 0.0006;
+      lastX = e.clientX;
+      lastY = e.clientY;
+    });
+    wrap.addEventListener('pointerup', () => { dragging = false; });
+    wrap.addEventListener('pointerleave', () => { dragging = false; });
+
+    size();
+    window.addEventListener('resize', size);
+
+    let raf;
+    function animate(t) {
+      raf = requestAnimationFrame(animate);
+      const time = (t || 0) / 1000;
+      updateGeometry(reduceMotion ? 0 : time);
+      if (!dragging) {
+        mesh.rotation.y += velX;
+        mesh.rotation.x += velY;
+        velX *= 0.985;
+        velY *= 0.985;
+        if (!reduceMotion) {
+          mesh.rotation.y += 0.0025;
+        }
       }
-    },
-    delete(key) {
-      try {
-        window.localStorage.removeItem(key);
-        return { key, deleted: true };
-      } catch (e) {
-        lastStorageError = (e && e.message) ? e.message : String(e);
-        return null;
-      }
-    },
+      renderer.render(scene, camera);
+    }
+    animate(0);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) cancelAnimationFrame(raf);
+      else animate(0);
+    });
+  })();
+
+  // --- 3D tilt on cards ---
+  function attachTilt(el) {
+    let raf = null;
+    el.addEventListener('mousemove', (e) => {
+      const rect = el.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width - 0.5;
+      const py = (e.clientY - rect.top) / rect.height - 0.5;
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        el.style.transform = `perspective(600px) rotateX(${(-py * 10).toFixed(2)}deg) rotateY(${(px * 12).toFixed(2)}deg) translateZ(4px)`;
+      });
+    });
+    el.addEventListener('mouseleave', () => {
+      if (raf) cancelAnimationFrame(raf);
+      el.style.transform = 'perspective(600px) rotateX(0) rotateY(0) translateZ(0)';
+    });
+  }
+
+  // --- Firebase (cloud accounts + cross-device sync) ---
+  // 1. Create a free project at https://console.firebase.google.com
+  // 2. Enable Authentication → Sign-in method → Email/Password
+  // 3. Enable Firestore Database (production mode is fine — see security rules in the README)
+  // 4. Project settings → General → Your apps → Web app → copy the config below
+  const firebaseConfig = {
+    apiKey: "AIzaSyD28yyAp4gOh6FTFybPXPsr0E3C0vUOVwA",
+    authDomain: "since-app-1924d.firebaseapp.com",
+    projectId: "since-app-1924d",
+    storageBucket: "since-app-1924d.firebasestorage.app",
+    messagingSenderId: "528330752201",
+    appId: "1:528330752201:web:94410f7c97c58ce27d0d18",
   };
 
-  function itemsKeyFor(username) {
-    return 'since-items:' + username.toLowerCase();
-  }
+  let auth = null;
+  let db = null;
+  let firebaseReady = false;
+  let unsubscribeItems = null;
 
-  async function hashPassword(password, salt) {
-    const enc = new TextEncoder();
-    const data = enc.encode(salt + ':' + password);
-    const digest = await crypto.subtle.digest('SHA-256', data);
-    return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
-  }
-
-  function randomSalt() {
-    return Array.from(crypto.getRandomValues(new Uint8Array(16))).map((b) => b.toString(16).padStart(2, '0')).join('');
-  }
-
-  async function getAccounts() {
-    try {
-      const res = localDB.get(ACCOUNTS_KEY);
-      return res && res.value ? JSON.parse(res.value) : {};
-    } catch (e) {
-      return {};
+  try {
+    if (typeof firebase !== 'undefined' && firebaseConfig.apiKey !== 'YOUR_API_KEY') {
+      firebase.initializeApp(firebaseConfig);
+      auth = firebase.auth();
+      db = firebase.firestore();
+      firebaseReady = true;
     }
-  }
-
-  async function saveAccounts(accounts) {
-    try {
-      if (!window.localStorage) {
-        lastStorageError = 'localStorage is not available in this browser.';
-        return false;
-      }
-      const result = localDB.set(ACCOUNTS_KEY, JSON.stringify(accounts));
-      if (!result) {
-        lastStorageError = lastStorageError || 'Could not save accounts.';
-      }
-      return !!result;
-    } catch (e) {
-      lastStorageError = (e && e.message) ? e.message : String(e);
-      console.error('saveAccounts failed', e);
-      return false;
-    }
+  } catch (e) {
+    console.error('Firebase init failed', e);
+    lastStorageError = (e && e.message) ? e.message : String(e);
   }
 
   function setAuthError(msg) {
@@ -555,16 +796,16 @@
   authToggleBtn.addEventListener('click', () => setMode(mode === 'signin' ? 'signup' : 'signin'));
 
   authSubmit.addEventListener('click', async () => {
-    const username = authUsername.value.trim();
+    const email = authUsername.value.trim();
     const password = authPassword.value;
     setAuthError('');
 
-    if (!username || !password) {
-      setAuthError('Enter a username and password.');
+    if (!firebaseReady) {
+      setAuthError('Cloud sync isn\u2019t configured yet — add your Firebase project config in the HTML file (see comments near the top of the script).');
       return;
     }
-    if (username.length < 2) {
-      setAuthError('Username needs to be at least 2 characters.');
+    if (!email || !password) {
+      setAuthError('Enter an email and password.');
       return;
     }
 
@@ -573,96 +814,64 @@
     authSubmit.textContent = 'Working…';
 
     try {
-      const accounts = await getAccounts();
-      const key = username.toLowerCase();
-
       if (mode === 'signup') {
         if (password !== authConfirm.value) {
           setAuthError('Passwords don\u2019t match.');
           return;
         }
-        if (password.length < 4) {
-          setAuthError('Password needs to be at least 4 characters.');
+        if (password.length < 6) {
+          setAuthError('Password needs to be at least 6 characters.');
           return;
         }
-        if (accounts[key]) {
-          setAuthError('That username is taken. Try signing in instead.');
-          return;
-        }
-        const salt = randomSalt();
-        const hash = await hashPassword(password, salt);
-        accounts[key] = { username, salt, hash };
-        const saved = await saveAccounts(accounts);
-        await logIn(username, !saved);
+        await auth.createUserWithEmailAndPassword(email, password);
       } else {
-        const account = accounts[key];
-        if (!account) {
-          setAuthError('No account with that username yet. Try creating one.');
-          return;
-        }
-        const hash = await hashPassword(password, account.salt);
-        if (hash !== account.hash) {
-          setAuthError('Wrong password.');
-          return;
-        }
-        await logIn(account.username);
+        await auth.signInWithEmailAndPassword(email, password);
       }
+      // onAuthStateChanged below handles showing the app
     } catch (err) {
       console.error('Auth error', err);
-      setAuthError('Something went wrong (' + (err && err.message ? err.message : 'unknown error') + '). Please try again.');
+      setAuthError(friendlyAuthError(err));
     } finally {
       authSubmit.disabled = false;
       authSubmit.textContent = originalLabel;
     }
   });
 
+  function friendlyAuthError(err) {
+    const code = err && err.code;
+    const map = {
+      'auth/email-already-in-use': 'That email already has an account. Try signing in instead.',
+      'auth/invalid-email': 'That doesn\u2019t look like a valid email address.',
+      'auth/user-not-found': 'No account with that email yet. Try creating one.',
+      'auth/wrong-password': 'Wrong password.',
+      'auth/weak-password': 'Password needs to be at least 6 characters.',
+      'auth/too-many-requests': 'Too many attempts — please wait a bit and try again.',
+    };
+    return (code && map[code]) || (err && err.message) || 'Something went wrong. Please try again.';
+  }
+
   logoutBtn.addEventListener('click', async () => {
-    currentUser = null;
-    try {
-      localDB.delete(SESSION_KEY);
-    } catch (e) {}
-    authScreen.classList.remove('app-hidden');
-    rootScreen.classList.add('app-hidden');
-    setMode('signin');
-    authUsername.value = '';
-    authPassword.value = '';
+    if (unsubscribeItems) { unsubscribeItems(); unsubscribeItems = null; }
+    if (auth) await auth.signOut();
   });
 
-  async function logIn(username, storageIssue) {
-    currentUser = username;
-    try {
-      if (!window.localStorage) {
-        throw new Error('localStorage is not available in this browser.');
-      }
-      localDB.set(SESSION_KEY, username);
-    } catch (e) {
-      console.error('Could not save session', e);
-      lastStorageError = lastStorageError || ((e && e.message) ? e.message : String(e));
-      storageIssue = true;
-    }
-    accountLabel.textContent = username;
+  function showApp(user) {
+    currentUser = user;
+    accountLabel.textContent = user.email;
     authScreen.classList.add('app-hidden');
     rootScreen.classList.remove('app-hidden');
     const warningEl = document.getElementById('storage-warning');
-    if (warningEl) {
-      if (storageIssue) {
-        warningEl.style.display = 'block';
-        warningEl.textContent = "Heads up: I couldn't reach storage just now (" + (lastStorageError || 'unknown reason') + "), so your account and list may not be saved between visits. Everything still works for this session.";
-      } else {
-        warningEl.style.display = 'none';
-      }
-    }
-    await load();
+    if (warningEl) warningEl.style.display = 'none';
+    subscribeItems(user.uid);
   }
 
-  async function tryAutoLogin() {
-    try {
-      const res = localDB.get(SESSION_KEY);
-      if (res && res.value) {
-        await logIn(res.value);
-        return;
-      }
-    } catch (e) {}
+  function showAuth() {
+    currentUser = null;
+    items = [];
+    authScreen.classList.remove('app-hidden');
+    rootScreen.classList.add('app-hidden');
+    authUsername.value = '';
+    authPassword.value = '';
     setMode('signin');
   }
 
@@ -670,23 +879,37 @@
 
   let items = [];
 
-  async function load() {
-    if (!currentUser) return;
-    try {
-      const res = localDB.get(itemsKeyFor(currentUser));
-      items = res && res.value ? JSON.parse(res.value) : defaultItems();
-    } catch (e) {
-      items = defaultItems();
-    }
-    render();
+  function subscribeItems(uid) {
+    if (!db) return;
+    if (unsubscribeItems) unsubscribeItems();
+    unsubscribeItems = db.collection('userItems').doc(uid).onSnapshot(
+      (doc) => {
+        const data = doc.data();
+        items = (data && Array.isArray(data.items)) ? data.items : defaultItems();
+        render();
+      },
+      (err) => {
+        console.error('Sync error', err);
+        const warningEl = document.getElementById('storage-warning');
+        if (warningEl) {
+          warningEl.style.display = 'block';
+          warningEl.textContent = "Heads up: couldn't sync with the cloud just now (" + (err.message || 'unknown error') + "). Changes here may not save.";
+        }
+      }
+    );
   }
 
   async function persist() {
-    if (!currentUser) return;
+    if (!currentUser || !db) return;
     try {
-      localDB.set(itemsKeyFor(currentUser), JSON.stringify(items));
+      await db.collection('userItems').doc(currentUser.uid).set({ items }, { merge: false });
     } catch (e) {
       console.error('Could not save', e);
+      const warningEl = document.getElementById('storage-warning');
+      if (warningEl) {
+        warningEl.style.display = 'block';
+        warningEl.textContent = "Heads up: couldn't save to the cloud just now (" + (e.message || 'unknown error') + ").";
+      }
     }
   }
 
@@ -718,9 +941,9 @@
   }
 
   function colorFor(ratio) {
-    if (ratio <= 1) return 'var(--sage)';
-    if (ratio <= 2) return 'var(--gold)';
-    return 'var(--rust)';
+    if (ratio <= 1) return 'var(--fresh)';
+    if (ratio <= 2) return 'var(--aging)';
+    return 'var(--overdue)';
   }
 
   function render() {
@@ -754,6 +977,7 @@
         </div>
       `;
       boardEl.appendChild(card);
+      attachTilt(card);
     });
 
     boardEl.querySelectorAll('.log-btn').forEach((btn) => {
@@ -816,7 +1040,15 @@
     render();
   });
 
-  tryAutoLogin();
+  if (firebaseReady) {
+    auth.onAuthStateChanged((user) => {
+      if (user) showApp(user);
+      else showAuth();
+    });
+  } else {
+    showAuth();
+    setAuthError('Cloud sync isn\u2019t configured yet — add your Firebase project config in the HTML file (see comments near the top of the script).');
+  }
   setInterval(() => { if (currentUser) render(); }, 60000);
 })();
 </script>
